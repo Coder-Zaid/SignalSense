@@ -60,38 +60,13 @@ export default function SmartTrafficSystem() {
               <img src="/logo.jpg" alt="Signal Sense Logo" className="h-8 w-8 rounded-full" />
               <span className="text-xl font-bold">Signal Sense</span>
             </div>
-            <div className="hidden md:flex space-x-6">
-              <a href="#about" className="hover:text-accent transition-colors">
-                About
-              </a>
-              <a href="#features" className="hover:text-accent transition-colors">
-                Features
-              </a>
-              <a href="#how-it-works" className="hover:text-accent transition-colors">
-                How It Works
-              </a>
-              <a href="#impact" className="hover:text-accent transition-colors">
-                Impact
-              </a>
-              <a href="#team" className="hover:text-accent transition-colors">
-                Team
-              </a>
+            <div className="hidden md:flex space-x-4">
               <a
                 href="/simulation"
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center gap-1"
               >
                 <Signal className="h-4 w-4" />
-                Live Traffic Simulation
-              </a>
-              <a
-                href="/comparison.html"
-                className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors font-medium flex items-center gap-1"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Compare Simulations
-              </a>
-              <a href="#contact" className="hover:text-accent transition-colors">
-                Contact
+                Try Simulation
               </a>
             </div>
           </nav>
