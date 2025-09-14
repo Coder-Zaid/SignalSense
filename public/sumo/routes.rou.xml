@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes>
+    <!-- Vehicle Types -->
+    <vType id="car" vClass="passenger" speedDev="0.2" sigma="0.5" />
+    <vType id="bus" vClass="bus" speedDev="0.1" sigma="0.3" />
+    <vType id="bike" vClass="bicycle" speedDev="0.3" sigma="0.8" />
+    <vType id="emergency" vClass="emergency" speedDev="0.1" sigma="0.2" />
+    
+    <!-- Routes -->
+    <route id="north_south" edges="north south"/>
+    <route id="south_north" edges="south north"/>
+    <route id="east_west" edges="east west"/>
+    <route id="west_east" edges="west east"/>
+    
+    <!-- Vehicle Flows -->
+    <flow id="north_flow" type="car" route="north_south" begin="0" end="3600" 
+          number="100" departLane="best" departSpeed="max" />
+    <flow id="south_flow" type="bus" route="south_north" begin="0" end="3600" 
+          number="50" departLane="best" departSpeed="max" />
+    <flow id="east_flow" type="bike" route="east_west" begin="0" end="3600" 
+          number="80" departLane="best" departSpeed="max" />
+    <flow id="west_flow" type="car" route="west_east" begin="0" end="3600" 
+          number="100" departLane="best" departSpeed="max" />
+    
+    <!-- Emergency Vehicle (random time) -->
+    <vehicle id="emergency_0" type="emergency" route="north_south" depart="60" 
+             departLane="best" departSpeed="max" color="1,0,0">
+        <param key="has.bluelight.device" value="true"/>
+    </vehicle>
+</routes>

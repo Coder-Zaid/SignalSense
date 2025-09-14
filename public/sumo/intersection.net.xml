@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<net version="1.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+    <location netOffset="0,0" convBoundary="0,0,500,500" origBoundary="0.00000000,0.00000000,500.00000000,500.00000000" projParameter="!" />
+    
+    <!-- Nodes (junctions) -->
+    <junction id="1" x="250" y="250" type="traffic_light"/>
+    
+    <!-- Edges (roads) -->
+    <edge id="north" from="1" to="1" priority="1">
+        <lane id="north_0" index="0" speed="13.89" length="200" width="3.2" shape="250,450 250,250"/>
+    </edge>
+    <edge id="south" from="1" to="1" priority="1">
+        <lane id="south_0" index="0" speed="13.89" length="200" width="3.2" shape="250,50 250,250"/>
+    </edge>
+    <edge id="east" from="1" to="1" priority="1">
+        <lane id="east_0" index="0" speed="13.89" length="200" width="3.2" shape="450,250 250,250"/>
+    </edge>
+    <edge id="west" from="1" to="1" priority="1">
+        <lane id="west_0" index="0" speed="13.89" length="200" width="3.2" shape="50,250 250,250"/>
+    </edge>
+    
+    <!-- Connections -->
+    <connection from="north" to="south" fromLane="0" toLane="0" dir="s" state="G" />
+    <connection from="south" to="north" fromLane="0" toLane="0" dir="s" state="r" />
+    <connection from="east" to="west" fromLane="0" toLane="0" dir="s" state="G" />
+    <connection from="west" to="east" fromLane="0" toLane="0" dir="s" state="r" />
+</net>

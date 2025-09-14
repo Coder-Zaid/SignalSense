@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SignalSense Simulation</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
+      background: #1a1a1a; 
+      color: #ff4d4d;
+    }
+    header { 
+      padding: 16px 20px; 
+      border-bottom: 1px solid #ff4d4d; 
+      position: sticky; 
+      top: 0; 
+      background: rgba(26, 26, 26, 0.95); 
+      backdrop-filter: blur(6px); 
+      z-index: 5; 
+    }
+    h1 { margin: 0; font-size: 20px; color: #ff4d4d; }
+    .container { max-width: 1200px; margin: 12px auto; padding: 0 16px; }
+    iframe { 
+      width: 100%; 
+      height: 800px; 
+      border: 2px solid #ff4d4d; 
+      border-radius: 8px; 
+      background: #0d0d0d;
+      margin-top: 16px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin: 16px 0;
+      padding: 12px;
+      background: #262626;
+      border-radius: 8px;
+      border: 1px solid #4d0000;
+    }
+    button {
+      padding: 8px 16px;
+      background: #4d0000;
+      color: #ff9999;
+      border: 1px solid #ff4d4d;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #660000;
+      color: #ffb3b3;
+    }
+    .metrics { 
+      margin-top: 20px; 
+      display: grid; 
+      grid-template-columns: repeat(3, minmax(0, 1fr)); 
+      gap: 16px; 
+    }
+    .metric {
+      background: #262626;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #4d0000;
+      text-align: center;
+    }
+    .metric h3 {
+      margin: 0 0 8px 0;
+      color: #ff8080;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    .metric-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #ff4d4d;
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="container">
+    <iframe id="simulationFrame" src="/traffic_simulation_turning.html"></iframe>
+    
+    <div class="metrics">
+        <div class="metric">
+            <h3>Average Wait Time</h3>
+            <div class="metric-value" id="avgWait">0.0s</div>
+        </div>
+        <div class="metric">
+            <h3>Throughput</h3>
+            <div class="metric-value" id="throughput">0.0 cars/min</div>
+        </div>
+        <div class="metric">
+            <h3>Total Queue</h3>
+            <div class="metric-value" id="totalQueue">0 cars</div>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    // Helper functions for metrics
+    function safeGetNumber(doc, selector, isTime = false) {
+      try {
+        const el = doc.querySelector(selector);
+        if (!el) return 0;
+        const text = el.textContent || '';
+        const match = text.match(/([0-9.]+)/);
+        if (!match) return 0;
+        const num = parseFloat(match[1]);
+        return isNaN(num) ? 0 : num;
+      } catch (e) {
+        console.debug('Error reading metric:', e);
+        return 0;
+      }
+    }
+    
+    function queueSum(doc) {
+      const ids = ['queue-north','queue-east','queue-south','queue-west'];
+      let sum = 0;
+      for (const id of ids) {
+        const el = doc?.getElementById(id);
+        if (!el) continue;
+        const m = el.textContent.match(/(\d+)/);
+        if (m) sum += parseInt(m[1], 10);
+      }
+      return sum;
+    }
+    
+    const frame = document.getElementById('simulationFrame');
+    let simWindow = null;
+    
+    async function whenReady() {
+      for (let i = 0; i < 100; i++) {
+        try {
+          const doc = frame.contentDocument || frame.contentWindow.document;
+          if (doc.readyState === 'complete' && doc.getElementById('startBtn')) {
+            return doc;
+          }
+        } catch (e) {}
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      throw new Error('Simulation not ready');
+    }
+
+    async function setupSimulation() {
+      try {
+        const doc = await whenReady();
+        simWindow = frame.contentWindow;
+        
+        // Set to fixed-time controller
+        const controller = doc.getElementById('controllerSelect');
+        if (controller) {
+          controller.value = 'fixed';
+          controller.dispatchEvent(new Event('change'));
+        }
+        
+        // Set fixed timing (8s green, 15s red)
+        const minGreen = doc.getElementById('minGreenInput');
+        const maxGreen = doc.getElementById('maxGreenInput');
+        if (minGreen && maxGreen) {
+          minGreen.value = '8';
+          maxGreen.value = '8';
+          minGreen.dispatchEvent(new Event('input'));
+          maxGreen.dispatchEvent(new Event('input'));
+        }
+        
+        // Set up controls
+        document.getElementById('startBtn').addEventListener('click', () => {
+          doc.getElementById('startBtn').click();
+        });
+        
+        document.getElementById('stopBtn').addEventListener('click', () => {
+          doc.getElementById('stopBtn').click();
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+          doc.getElementById('resetBtn').click();
+        });
+        
+        // Update metrics
+        setInterval(() => {
+          try {
+            // Get metrics from the simulation
+            const avgWait = safeGetNumber(doc, '.avg-wait', true) || 0;
+            const throughput = safeGetNumber(doc, '.throughput') || 0;
+            const totalQueue = queueSum(doc);
+            
+            // Update our own metrics display
+            document.getElementById('avgWait').textContent = `${avgWait.toFixed(1)}s`;
+            document.getElementById('throughput').textContent = `${throughput.toFixed(1)} cars/min`;
+            document.getElementById('totalQueue').textContent = `${totalQueue} cars`;
+            
+            // Expose metrics to parent for comparison
+            window.parent.postMessage({
+              type: 'METRICS_UPDATE',
+              source: 'fixed',
+              metrics: {
+                avgWait,
+                throughput,
+                totalQueue,
+                // Add data attributes for easier scraping
+                dataMetrics: JSON.stringify({
+                  'avg-wait': avgWait,
+                  'throughput': throughput,
+                  'queue-north': safeGetNumber(doc, '#queue-north') || 0,
+                  'queue-east': safeGetNumber(doc, '#queue-east') || 0,
+                  'queue-south': safeGetNumber(doc, '#queue-south') || 0,
+                  'queue-west': safeGetNumber(doc, '#queue-west') || 0
+                })
+              }
+            }, '*');
+          } catch (e) {}
+        }, 500);
+        
+      } catch (e) {
+        console.error('Error setting up simulation:', e);
+      }
+    }
+    
+    // Listen for control messages from parent
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'CONTROL') {
+        try {
+          const doc = frame.contentDocument || frame.contentWindow.document;
+          const btn = doc.getElementById(event.data.action + 'Btn');
+          if (btn) {
+            console.log(`Received ${event.data.action} command`);
+            btn.click();
+          } else {
+            console.warn(`Button not found: ${event.data.action}Btn`);
+          }
+        } catch (e) {
+          console.error('Error handling control message:', e);
+        }
+      }
+    });
+
+    // Initialize when iframe is loaded
+    frame.onload = setupSimulation;
+  </script>
+</body>
+</html>
