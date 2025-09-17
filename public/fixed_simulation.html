@@ -83,7 +83,7 @@
 <body>
   
   <div class="container">
-    <iframe id="simulationFrame" src="/traffic_simulation_turning.html"></iframe>
+    <iframe id="simulationFrame" src="/fixed_simulation.html"></iframe>
     
     <div class="metrics">
         <div class="metric">
@@ -158,14 +158,17 @@
           controller.dispatchEvent(new Event('change'));
         }
         
-        // Set fixed timing (8s green, 15s red)
+        // Set fixed timing (30s green, 30s red)
         const minGreen = doc.getElementById('minGreenInput');
         const maxGreen = doc.getElementById('maxGreenInput');
-        if (minGreen && maxGreen) {
-          minGreen.value = '8';
-          maxGreen.value = '8';
+        const redTime = doc.getElementById('redTimeInput');
+        if (minGreen && maxGreen && redTime) {
+          minGreen.value = '30';
+          maxGreen.value = '30';
+          redTime.value = '30';
           minGreen.dispatchEvent(new Event('input'));
           maxGreen.dispatchEvent(new Event('input'));
+          redTime.dispatchEvent(new Event('input'));
         }
         
         // Set up controls
