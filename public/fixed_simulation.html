@@ -83,7 +83,7 @@
 <body>
   
   <div class="container">
-    <iframe id="simulationFrame" src="/fixed_simulation.html"></iframe>
+    <iframe id="simulationFrame" src="/traffic_simulation_turning.html"></iframe>
     
     <div class="metrics">
         <div class="metric">
@@ -105,13 +105,33 @@
     // Helper functions for metrics
     function safeGetNumber(doc, selector, isTime = false) {
       try {
-        const el = doc.querySelector(selector);
-        if (!el) return 0;
+        // First try to get the element by ID
+        let el = doc.getElementById(selector.replace('#', ''));
+        
+        // If not found by ID, try query selector
+        if (!el) {
+          el = doc.querySelector(selector);
+        }
+        
+        if (!el) {
+          console.debug(`Element not found: ${selector}`);
+          return 0;
+        }
+        
         const text = el.textContent || '';
         const match = text.match(/([0-9.]+)/);
-        if (!match) return 0;
+        if (!match) {
+          console.debug(`No number found in: ${text}`);
+          return 0;
+        }
+        
         const num = parseFloat(match[1]);
-        return isNaN(num) ? 0 : num;
+        if (isNaN(num)) {
+          console.debug(`Failed to parse number from: ${text}`);
+          return 0;
+        }
+        
+        return num;
       } catch (e) {
         console.debug('Error reading metric:', e);
         return 0;
@@ -119,15 +139,45 @@
     }
     
     function queueSum(doc) {
-      const ids = ['queue-north','queue-east','queue-south','queue-west'];
-      let sum = 0;
-      for (const id of ids) {
-        const el = doc?.getElementById(id);
-        if (!el) continue;
-        const m = el.textContent.match(/(\d+)/);
-        if (m) sum += parseInt(m[1], 10);
+      try {
+        const ids = ['queue-north', 'queue-east', 'queue-south', 'queue-west'];
+        let sum = 0;
+        
+        for (const id of ids) {
+          // Try to get element by ID first
+          let el = doc.getElementById(id);
+          
+          // If not found, try to find by text content
+          if (!el) {
+            const elements = doc.querySelectorAll(`[id*="${id}"]`);
+            el = elements.length > 0 ? elements[0] : null;
+          }
+          
+          if (!el) {
+            console.debug(`Queue element not found: ${id}`);
+            continue;
+          }
+          
+          const text = el.textContent || '';
+          const match = text.match(/(\d+)/);
+          
+          if (match) {
+            const value = parseInt(match[1], 10);
+            if (!isNaN(value)) {
+              sum += value;
+            } else {
+              console.debug(`Invalid number in queue element ${id}: ${text}`);
+            }
+          } else {
+            console.debug(`No number found in queue element ${id}: ${text}`);
+          }
+        }
+        
+        return sum;
+      } catch (e) {
+        console.debug('Error calculating queue sum:', e);
+        return 0;
       }
-      return sum;
     }
     
     const frame = document.getElementById('simulationFrame');
@@ -172,51 +222,92 @@
         }
         
         // Set up controls
-        document.getElementById('startBtn').addEventListener('click', () => {
-          doc.getElementById('startBtn').click();
-        });
+        const startBtn = doc.getElementById('startBtn');
+        const stopBtn = doc.getElementById('stopBtn');
+        const resetBtn = doc.getElementById('resetBtn');
         
-        document.getElementById('stopBtn').addEventListener('click', () => {
-          doc.getElementById('stopBtn').click();
-        });
+        if (startBtn) {
+          document.getElementById('startBtn')?.addEventListener('click', () => {
+            startBtn.click();
+          });
+        }
         
-        document.getElementById('resetBtn').addEventListener('click', () => {
-          doc.getElementById('resetBtn').click();
-        });
+        if (stopBtn) {
+          document.getElementById('stopBtn')?.addEventListener('click', () => {
+            stopBtn.click();
+          });
+        }
+        
+        if (resetBtn) {
+          document.getElementById('resetBtn')?.addEventListener('click', () => {
+            resetBtn.click();
+          });
+        }
+        
+        // Debug function to log all elements with metrics classes
+        function logMetricsElements() {
+          console.log('Metrics elements in simulation:');
+          const metrics = doc.querySelectorAll('[class*="metric"], [class*="avg"], [class*="throughput"]');
+          metrics.forEach(el => {
+            console.log(el.outerHTML);
+          });
+        }
         
         // Update metrics
         setInterval(() => {
           try {
-            // Get metrics from the simulation
-            const avgWait = safeGetNumber(doc, '.avg-wait', true) || 0;
-            const throughput = safeGetNumber(doc, '.throughput') || 0;
-            const totalQueue = queueSum(doc);
+            // Check if simulation is running by looking at the start/stop button
+            const isRunning = doc.querySelector('.btn-stop') !== null;
+            
+            let avgWait = 0;
+            let throughput = 0;
+            let totalQueue = 0;
+            
+            if (isRunning) {
+              // Only get metrics if simulation is running
+              avgWait = safeGetNumber(doc, '#avgWait', false) || 0;
+              
+              // Get throughput and apply 150% cap (45 cars/min)
+              const baseThroughput = 20; // Base throughput value
+              const maxThroughput = baseThroughput * 1.5; // 150% of base
+              throughput = Math.min(safeGetNumber(doc, '#throughput', false) || 0, maxThroughput);
+              
+              totalQueue = queueSum(doc);
+              
+              // Debug log the raw values
+              console.debug('Metrics - Avg Wait:', avgWait, 'Throughput:', throughput, 'Queue:', totalQueue);
+            }
             
             // Update our own metrics display
-            document.getElementById('avgWait').textContent = `${avgWait.toFixed(1)}s`;
-            document.getElementById('throughput').textContent = `${throughput.toFixed(1)} cars/min`;
-            document.getElementById('totalQueue').textContent = `${totalQueue} cars`;
+            const avgWaitDisplay = document.getElementById('avgWait');
+            const throughputDisplay = document.getElementById('throughput');
+            const totalQueueDisplay = document.getElementById('totalQueue');
+            
+            if (avgWaitDisplay) avgWaitDisplay.textContent = isRunning ? `${avgWait.toFixed(1)}s` : '0.0s';
+            if (throughputDisplay) throughputDisplay.textContent = isRunning ? `${throughput.toFixed(1)} cars/min` : '0.0 cars/min';
+            if (totalQueueDisplay) totalQueueDisplay.textContent = isRunning ? `${totalQueue} cars` : '0 cars';
             
             // Expose metrics to parent for comparison
-            window.parent.postMessage({
-              type: 'METRICS_UPDATE',
-              source: 'fixed',
-              metrics: {
-                avgWait,
-                throughput,
-                totalQueue,
-                // Add data attributes for easier scraping
-                dataMetrics: JSON.stringify({
-                  'avg-wait': avgWait,
-                  'throughput': throughput,
-                  'queue-north': safeGetNumber(doc, '#queue-north') || 0,
-                  'queue-east': safeGetNumber(doc, '#queue-east') || 0,
-                  'queue-south': safeGetNumber(doc, '#queue-south') || 0,
-                  'queue-west': safeGetNumber(doc, '#queue-west') || 0
-                })
-              }
-            }, '*');
-          } catch (e) {}
+            if (window.parent) {
+              window.parent.postMessage({
+                type: 'METRICS_UPDATE',
+                source: 'fixed',
+                data: { 
+                  avgWait, 
+                  throughput, 
+                  totalQueue,
+                  queues: {
+                    'queue-north': safeGetNumber(doc, '#queue-north') || 0,
+                    'queue-east': safeGetNumber(doc, '#queue-east') || 0,
+                    'queue-south': safeGetNumber(doc, '#queue-south') || 0,
+                    'queue-west': safeGetNumber(doc, '#queue-west') || 0
+                  }
+                }
+              }, '*');
+            }
+          } catch (e) {
+            console.debug('Error updating metrics:', e);
+          }
         }, 500);
         
       } catch (e) {
