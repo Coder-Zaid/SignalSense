@@ -858,11 +858,26 @@
                 this.vehicles = [];
                 this.vehicleIdCounter = 0;
                 this.lastStepTime = 0;
-                this.lastSwitchTime = 0; // Reset switch time on reset
+                this.lastSwitchTime = Date.now(); // Initialize with current time
+                this.isRunning = false; // Ensure running state is reset
                 
-                // Clear vehicle display
+                // Clear vehicle display and reset metrics
                 const container = document.getElementById('vehicleContainer');
                 if (container) container.innerHTML = '';
+                
+                // Reset all displayed metrics to zero
+                if (this.elements) {
+                    this.elements.totalVehicles.textContent = '0';
+                    this.elements.throughput.textContent = '0.0';
+                    this.elements.avgWait.textContent = '0.0';
+                    this.elements.totalReward.textContent = '0';
+                    
+                    // Reset queue displays
+                    document.getElementById('queue-north').textContent = 'North: 0';
+                    document.getElementById('queue-east').textContent = 'East: 0';
+                    document.getElementById('queue-south').textContent = 'South: 0';
+                    document.getElementById('queue-west').textContent = 'West: 0';
+                }
                 
                 this.updateDisplay();
                 this.updateTrafficLights();
@@ -1334,11 +1349,26 @@
             }
 
             getFixedTimerAction() {
-                const cycleLength = 40;
-                const phaseLength = 10;
-                const cyclePosition = this.step % cycleLength;
-                const phase = Math.floor(cyclePosition / phaseLength) + 1;
-                return phase > 4 ? 1 : phase;
+                const currentTime = Date.now();
+                const elapsedSinceSwitch = (currentTime - this.lastSwitchTime) / 1000; // in seconds
+                const phaseDuration = 15; // 15 seconds per phase
+                
+                // Calculate countdown value (15 to 0)
+                const countdown = Math.max(0, Math.ceil(phaseDuration - (elapsedSinceSwitch % phaseDuration)));
+                
+                // Update the phase countdown display
+                this.phaseCountdown = countdown * 1000; // Convert to milliseconds
+                
+                // Determine current phase based on elapsed time
+                const phaseIndex = Math.floor(elapsedSinceSwitch / phaseDuration) % 4;
+                const phase = phaseIndex + 1; // Phases are 1-4
+                
+                // Only switch phase when countdown reaches 0
+                if (countdown === 0) {
+                    return (phase % 4) + 1; // Move to next phase
+                }
+                
+                return phase; // Keep current phase
             }
 
             getHeuristicAction() {
@@ -1356,26 +1386,50 @@
 
             updateTrafficLights() {
                 const directions = ['north', 'south', 'east', 'west'];
+                const currentTime = Date.now();
+                const elapsedSinceSwitch = (currentTime - this.lastSwitchTime) / 1000; // in seconds
+                const phaseDuration = 15; // 15 seconds per phase
+                const yellowDuration = 3; // 3 seconds of yellow
+                const redDuration = phaseDuration - yellowDuration; // 12 seconds of red
+                
+                // Calculate countdown value (15 to 0)
+                const countdown = Math.max(0, Math.ceil(phaseDuration - (elapsedSinceSwitch % phaseDuration)));
+                const isYellow = countdown <= yellowDuration && countdown > 0;
+                const isRed = countdown > yellowDuration || countdown === 0;
                 
                 directions.forEach((dir, index) => {
-                    const isGreen = this.currentPhase === index + 1;
+                    const isCurrentPhase = this.currentPhase === index + 1;
+                    const isNextPhase = ((this.currentPhase) % 4) + 1 === index + 1;
                     
-                    // Update light colors
-                    document.getElementById(`light-${dir}-red`).className = 
-                        `light ${isGreen ? 'off' : 'red'}`;
-                    document.getElementById(`light-${dir}-yellow`).className = 'light off';
-                    document.getElementById(`light-${dir}-green`).className = 
-                        `light ${isGreen ? 'green' : 'off'}`;
+                    // Update light colors with yellow phase
+                    const redLight = document.getElementById(`light-${dir}-red`);
+                    const yellowLight = document.getElementById(`light-${dir}-yellow`);
+                    const greenLight = document.getElementById(`light-${dir}-green`);
+                    
+                    if (isCurrentPhase) {
+                        redLight.className = 'light off';
+                        yellowLight.className = `light ${isYellow ? 'yellow' : 'off'}`;
+                        greenLight.className = `light ${!isYellow ? 'green' : 'off'}`;
+                    } else {
+                        redLight.className = 'light red';
+                        yellowLight.className = 'light off';
+                        greenLight.className = 'light off';
+                    }
                     
                     // Update countdown timers
                     const timerElement = document.getElementById(`timer-${dir}`);
-                    if (isGreen && this.phaseCountdown > 0) {
-                        const seconds = Math.ceil(this.phaseCountdown / 1000);
-                        timerElement.textContent = seconds;
-                        timerElement.style.color = seconds <= 3 ? '#ff0000' : '#00ff00';
+                    if (isCurrentPhase) {
+                        // For current phase (green/yellow)
+                        timerElement.textContent = Math.min(countdown, 99); // Cap at 99
+                        timerElement.style.color = isYellow ? '#ffcc00' : '#00ff00';
                     } else {
-                        timerElement.textContent = '--';
-                        timerElement.style.color = '#666';
+                        // For red lights, show countdown to next green
+                        let nextGreenIn = countdown;
+                        if (isNextPhase && countdown === 0) {
+                            nextGreenIn = phaseDuration; // Reset to full duration for next phase
+                        }
+                        timerElement.textContent = Math.min(nextGreenIn, 99); // Cap at 99
+                        timerElement.style.color = '#ff0000';
                     }
                 });
             }
@@ -1456,8 +1510,7 @@
             }
 
             updateDisplay() {
-                // Update phase indicator
-                const phaseNames = ['NONE', 'North', 'East', 'South', 'West'];
+                const phaseNames = ['None', 'North', 'East', 'South', 'West'];
                 this.elements.phaseIndicator.textContent = `Phase: ${phaseNames[this.currentPhase]}`;
 
                 // Update queue displays with actual vehicle counts
@@ -1468,16 +1521,32 @@
                     }
                 });
 
+                // Always update queue displays, even when not running
                 document.getElementById('queue-north').textContent = `North: ${actualQueues[0]}`;
                 document.getElementById('queue-east').textContent = `East: ${actualQueues[1]}`;
                 document.getElementById('queue-south').textContent = `South: ${actualQueues[2]}`;
                 document.getElementById('queue-west').textContent = `West: ${actualQueues[3]}`;
 
-                // Update metrics
-                this.elements.totalVehicles.textContent = this.totalVehicles;
-                this.elements.throughput.textContent = (this.totalCleared / Math.max(1, this.step / 60) * 60).toFixed(1);
-                this.elements.avgWait.textContent = (this.waitTimes.reduce((sum, w) => sum + w, 0) / 4).toFixed(1);
-                this.elements.totalReward.textContent = Math.round(this.totalReward);
+                // Only update metrics if simulation is running and has been running for at least 1 second
+                if (this.isRunning && this.step > 0) {
+                    // Calculate and cap throughput at 150% of base
+                    const baseThroughput = 30; // Base throughput value (vehicles per minute)
+                    const maxThroughput = baseThroughput * 1.5; // 150% of base (45 vehicles/min)
+                    const elapsedMinutes = this.step / 60; // Convert steps to minutes
+                    const currentThroughput = this.totalCleared / Math.max(0.1, elapsedMinutes); // Avoid division by zero
+                    
+                    // Apply cap and ensure we don't show NaN or Infinity
+                    const cappedThroughput = Math.min(
+                        isFinite(currentThroughput) ? currentThroughput : 0,
+                        maxThroughput
+                    );
+                    
+                    // Update metrics
+                    this.elements.totalVehicles.textContent = this.totalVehicles;
+                    this.elements.throughput.textContent = Math.min(cappedThroughput, maxThroughput).toFixed(1);
+                    this.elements.avgWait.textContent = (this.waitTimes.reduce((sum, w) => sum + w, 0) / 4).toFixed(1);
+                    this.elements.totalReward.textContent = Math.round(this.totalReward);
+                }
             }
 
             log(message) {
