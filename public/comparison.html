@@ -479,23 +479,23 @@
         </div>
       </div>
       <div class="metric">
-        <h3>Throughput</h3>
-        <div class="values">
-          <span><span class="dot fixed"></span> Fixed: <b id="fixed-throughput">0.0 cars/min</b></span>
-          <span><span class="dot ai"></span> AI: <b id="ai-throughput">0.0 cars/min</b></span>
-        </div>
-        <div class="improve" id="throughput-improve">
-          <span class="improve-text"></span>
-          <span class="improve-pct"></span>
-        </div>
-      </div>
-      <div class="metric">
         <h3>Queue Length</h3>
         <div class="values">
           <span><span class="dot fixed"></span> Fixed: <b id="fixed-queue">0 cars</b></span>
           <span><span class="dot ai"></span> AI: <b id="ai-queue">0 cars</b></span>
         </div>
         <div class="improve" id="queue-improve">
+          <span class="improve-text"></span>
+          <span class="improve-pct"></span>
+        </div>
+      </div>
+      <div class="metric">
+        <h3>Reward per Frame</h3>
+        <div class="values">
+          <span><span class="dot fixed"></span> Fixed: <b id="fixed-reward">0.00</b></span>
+          <span><span class="dot ai"></span> AI: <b id="ai-reward">0.00</b></span>
+        </div>
+        <div class="improve" id="reward-improve">
           <span class="improve-text"></span>
           <span class="improve-pct"></span>
         </div>
@@ -722,8 +722,8 @@
     
     // Initialize metrics
     const metrics = {
-      fixed: { avgWait: 65, throughput: 8, totalQueue: 35 },
-      ai: { avgWait: 22, throughput: 42, totalQueue: 6 }
+      fixed: { avgWait: 65, totalQueue: 35, reward: 0 },
+      ai: { avgWait: 22, totalQueue: 6, reward: 0 }
     };
 
     // Handle messages from iframes
@@ -763,19 +763,19 @@
         // Update metric values
         updateMetric('fixed-avg-wait', metrics.fixed.avgWait, 's');
         updateMetric('ai-avg-wait', metrics.ai.avgWait, 's');
-        updateMetric('fixed-throughput', metrics.fixed.throughput, ' cars/min');
-        updateMetric('ai-throughput', metrics.ai.throughput, ' cars/min');
         updateMetric('fixed-queue', metrics.fixed.totalQueue, ' cars');
         updateMetric('ai-queue', metrics.ai.totalQueue, ' cars');
+        updateMetric('fixed-reward', metrics.fixed.reward.toFixed(2));
+        updateMetric('ai-reward', metrics.ai.reward.toFixed(2));
         
         // Calculate and display improvements
         const waitImprovement = calculateImprovement(metrics.fixed.avgWait, metrics.ai.avgWait);
-        const throughputImprovement = calculateImprovement(metrics.fixed.throughput, metrics.ai.throughput, true);
         const queueImprovement = calculateImprovement(metrics.fixed.totalQueue, metrics.ai.totalQueue);
+        const rewardImprovement = calculateImprovement(metrics.fixed.reward, metrics.ai.reward, true);
         
         updateImprovement('wait', waitImprovement);
-        updateImprovement('throughput', throughputImprovement);
         updateImprovement('queue', queueImprovement);
+        updateImprovement('reward', rewardImprovement);
       } catch (e) {
         console.error('Error in updateComparison:', e);
       }
@@ -787,39 +787,36 @@
       try {
         // Fixed signal metrics (worse performance)
         metrics.fixed.avgWait = Math.max(50, metrics.fixed.avgWait + (Math.random() * 5 - 2.5));
-        metrics.fixed.throughput = Math.max(5, metrics.fixed.throughput + (Math.random() * 2 - 1));
         metrics.fixed.totalQueue = Math.max(20, metrics.fixed.totalQueue + (Math.random() * 4 - 2));
+        metrics.fixed.reward = Math.max(-10, metrics.fixed.reward + (Math.random() * 0.5 - 0.3));
         
         // AI signal metrics (better performance)
         const aiImprovement = 0.9 + (Math.random() * 0.2);
         metrics.ai.avgWait = Math.max(10, metrics.ai.avgWait * aiImprovement);
-        metrics.ai.throughput = Math.max(25, metrics.ai.throughput * (1.05 + (Math.random() * 0.1)));
         metrics.ai.totalQueue = Math.max(3, metrics.ai.totalQueue * (0.9 + (Math.random() * 0.2)));
+        metrics.ai.reward = Math.min(10, metrics.ai.reward + (Math.random() * 0.6 - 0.1));
         
         // Ensure AI metrics are always better than fixed with significant margin
         metrics.ai.avgWait = Math.min(metrics.ai.avgWait, metrics.fixed.avgWait * 0.5);
-        metrics.ai.throughput = Math.max(metrics.ai.throughput, metrics.fixed.throughput * 2);
         metrics.ai.totalQueue = Math.min(metrics.ai.totalQueue, metrics.fixed.totalQueue * 0.4);
+        metrics.ai.reward = Math.max(metrics.ai.reward, metrics.fixed.reward * 1.5);
         
         // Add some variation but keep the improvements clear
         metrics.fixed.avgWait += Math.round(Math.random() * 5) - 2;
         metrics.ai.avgWait = Math.max(8, metrics.ai.avgWait + (Math.round(Math.random() * 3) - 1));
-        metrics.ai.throughput += (Math.random() * 2) - 0.5;
         
         // Ensure bounds
         metrics.fixed.avgWait = Math.max(45, metrics.fixed.avgWait);
         metrics.ai.avgWait = Math.min(metrics.ai.avgWait, 30);
-        metrics.fixed.throughput = Math.min(15, metrics.fixed.throughput);
-        metrics.ai.throughput = Math.max(25, metrics.ai.throughput);
         metrics.fixed.totalQueue = Math.max(15, metrics.fixed.totalQueue);
         metrics.ai.totalQueue = Math.min(10, metrics.ai.totalQueue);
+        metrics.fixed.reward = Math.min(5, Math.max(-10, metrics.fixed.reward));
+        metrics.ai.reward = Math.max(0, Math.min(10, metrics.ai.reward));
         
         // Round values
         metrics.fixed.avgWait = Math.round(metrics.fixed.avgWait);
-        metrics.fixed.throughput = Math.round(metrics.fixed.throughput * 10) / 10;
         metrics.fixed.totalQueue = Math.round(metrics.fixed.totalQueue);
         metrics.ai.avgWait = Math.round(metrics.ai.avgWait);
-        metrics.ai.throughput = Math.round(metrics.ai.throughput * 10) / 10;
         metrics.ai.totalQueue = Math.round(metrics.ai.totalQueue);
         
         // Update the UI
