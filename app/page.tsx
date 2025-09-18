@@ -297,8 +297,8 @@ export default function SmartTrafficSystem() {
               { name: "Mohammad Saalim", role: "Backend Developer", avatar: "/Saalim.jpg" },
               { name: "Shaikh Arsh Ali", role: "AI/ML Engineer", avatar: "/Arsh.jpg" },
               { name: "Prabheesh Singh", role: "Graphic Designer", avatar: "/prabheesh singh.jpg" },
-              { name: "Rayaan Faheem Shaik", role: "Creative Director", avatar: "/Rayan Faheem Shaikh.jpg" },
-              { name: "Chetana", role: "Speaker & Presenter", avatar: "/chetana.jpeg" },
+              { name: "Rayan Faheem Shaik", role: "Creative Director", avatar: "/Rayan Faheem Shaikh.jpg" },
+              { name: "M S Chethana", role: "Speaker & Presenter", avatar: "/chetana.jpeg" },
             ].map((member, index) => (
               <Card key={index} className="text-center group hover:shadow-lg transition-all duration-300">
                 <CardContent className="pt-6">
